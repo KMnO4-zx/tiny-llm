@@ -371,6 +371,7 @@ class Transformer(nn.Module):
     def estimate_mfu(self, fwdbwd_per_iter, dt):
         """ 估计模型的 FLOPs 利用率 (MFU) 单位：A100 bfloat16 的峰值 FLOPS """
         # 计算每次迭代的 FLOPs 数量（参考 PaLM 论文的附录 B）
+        # PaLM: Scaling Language Modeling with Pathways: https://arxiv.org/abs/2204.02311
         N = sum(p.numel() for p in self.parameters())
         cfg = self.args
         L, H, Q, T = cfg.n_layers, cfg.n_heads, cfg.dim//cfg.n_heads, cfg.max_seq_len
