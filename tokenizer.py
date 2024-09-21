@@ -3,7 +3,7 @@ import struct
 from sentencepiece import SentencePieceProcessor
 from typing import List
 
-TOKENIZER_MODEL = "tokenizer.model"
+TOKENIZER_MODEL = "tok4096.model"
 
 class Tokenizer:
     def __init__(self, tokenizer_model=None):

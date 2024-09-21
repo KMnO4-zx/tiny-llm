@@ -14,7 +14,7 @@ from tqdm import tqdm
 from tokenizer import Tokenizer
 
 DATA_CACHE_DIR = 'data'
-TOKENIZER_MODEL = "tokenizer.model"
+TOKENIZER_MODEL = "tok4096.model"
 
 
 # 定义分片处理函数
@@ -191,4 +191,4 @@ class Task:
 
 
 if __name__ == "__main__":
-    pretokenize(vocab_size=32000)
+    pretokenize(vocab_size=4096)

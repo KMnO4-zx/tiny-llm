@@ -9,7 +9,7 @@ import argparse
 class TextGenerator:
     def __init__(self, 
                  checkpoint='output/ckpt.pt',  # 模型检查点路径
-                 tokenizer_model_path='tokenizer.model',  # 分词器模型路径
+                 tokenizer_model_path='tok4096.model',  # 分词器模型路径
                  seed=1337,  # 随机种子，确保可重复性
                  device=None,  # 设备，优先使用 CUDA，如果没有可用的 CUDA，则使用 CPU
                  dtype="float32"):  # 数据类型，默认为 float32，可以选择 float16 或 bfloat16

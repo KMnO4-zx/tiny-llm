@@ -22,13 +22,13 @@ init_from = "scratch"  # 可以选择从头开始训练（'scratch'）或从已�
 # 数据配置
 batch_size = 4  # 每个微批次的样本数量，如果使用梯度累积，实际批次大小将更大
 max_seq_len = 256  # 最大序列长度
-vocab_size = 32000  # 自定义词汇表大小
+vocab_size = 4096  # 自定义词汇表大小
 
 # 模型配置
 dim = 288  # 模型的隐藏层维度
-n_layers = 6  # Transformer的层数
-n_heads = 6  # 注意力头的数量
-n_kv_heads = 3  # 模型分组
+n_layers = 8  # Transformer的层数
+n_heads = 8  # 注意力头的数量
+n_kv_heads = 4  # 模型分组
 multiple_of = 32  # 在某些层的维度必须是该数的倍数
 dropout = 0.0  # Dropout概率
 

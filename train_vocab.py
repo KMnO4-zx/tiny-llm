@@ -140,7 +140,7 @@ def train_vocab(vocab_size: int=32000, num_shards: int=20):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--download", type=bool, default=True, help="download the dataset")
-    parser.add_argument("--vocab_size", type=int, default=32000, help="vocab size")
+    parser.add_argument("--vocab_size", type=int, default=4096, help="vocab size")
     args = parser.parse_args()
     if args.download:
         download()
