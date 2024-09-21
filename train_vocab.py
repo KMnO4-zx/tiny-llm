@@ -4,7 +4,7 @@ import os
 from tqdm import tqdm
 import requests
 import sentencepiece as spm
-
+import argparse
 
 DATA_CACHE_DIR = 'data'
 
@@ -33,7 +33,7 @@ def download():
     os.makedirs(DATA_CACHE_DIR, exist_ok=True)
 
     # 定义TinyStories数据集的下载URL和保存的文件名
-    data_url = "https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinyStories_all_data.tar.gz"
+    data_url = "https://www.modelscope.cn/datasets/AI-ModelScope/TinyStories/resolve/master/TinyStories_all_data.tar.gz"
     data_filename = os.path.join(DATA_CACHE_DIR, "TinyStories_all_data.tar.gz")
     
     # 检查数据集是否已经下载，如果没有下载则进行下载
@@ -138,5 +138,10 @@ def train_vocab(vocab_size: int=32000, num_shards: int=20):
     print("Done.")
 
 if __name__ == "__main__":
-    # download() # 下载数据集
-    train_vocab() # 训练词汇表
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--download", type=bool, default=True, help="download the dataset")
+    parser.add_argument("--vocab_size", type=int, default=32000, help="vocab size")
+    args = parser.parse_args()
+    if args.download:
+        download()
+    train_vocab(args.vocab_size)
