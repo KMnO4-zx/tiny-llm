@@ -4,6 +4,7 @@ from contextlib import nullcontext
 import torch
 from model import ModelArgs, Transformer
 from tokenizer import Tokenizer
+import argparse
 
 class TextGenerator:
     def __init__(self, 
@@ -93,7 +94,11 @@ class TextGenerator:
 
 # 示例使用
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--prompt", type=str, default="One day, Lily met a Shoggoth")
+    args = parser.parse_args()
+
     generator = TextGenerator()  # 初始化生成器
-    samples = generator.sample(start="Hello!", num_samples=3, max_new_tokens=256)  # 生成 3 个样本
+    samples = generator.sample(start=args.prompt, num_samples=3, max_new_tokens=256)  # 生成 3 个样本
     for i, sample in enumerate(samples):
         print(f"\nSample {i+1}:\n{sample}\n{'-'*20}")  # 打印生成的样本并用分隔线分割
