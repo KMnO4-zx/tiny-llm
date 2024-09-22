@@ -20,7 +20,7 @@ always_save_checkpoint = False  # 如果为True，在每次评估后总是保存
 init_from = "scratch"  # 可以选择从头开始训练（'scratch'）或从已有的检查点恢复（'resume'）
 
 # 数据配置
-batch_size = 4  # 每个微批次的样本数量，如果使用梯度累积，实际批次大小将更大
+batch_size = 8  # 每个微批次的样本数量，如果使用梯度累积，实际批次大小将更大
 max_seq_len = 256  # 最大序列长度
 vocab_size = 4096  # 自定义词汇表大小
 

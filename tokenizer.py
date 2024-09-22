@@ -3,7 +3,7 @@ import struct
 from sentencepiece import SentencePieceProcessor
 from typing import List
 
-TOKENIZER_MODEL = "tok4096.model"
+TOKENIZER_MODEL = "./data/tok4096.model"
 
 class Tokenizer:
     def __init__(self, tokenizer_model=None):
@@ -66,40 +66,3 @@ class Tokenizer:
         str: 解码后的字符串。
         """
         return self.sp_model.decode(t)
-
-    def export(self):
-        """
-        将分词器的词元和对应的得分导出为二进制文件，便于后续高效加载使用。
-        """
-        # 存储所有的词元和它们的得分
-        tokens, scores = [], []
-        for i in range(self.n_words):
-            # 根据ID获取词元并进行轻量化后处理
-            t = self.sp_model.id_to_piece(i)  # 获取词元
-            s = self.sp_model.get_score(i)    # 获取词元的得分
-            # 如果是BOS或EOS标记，替换为可读的格式
-            if i == self.bos_id:
-                t = '\n<s>\n'
-            elif i == self.eos_id:
-                t = '\n</s>\n'
-            # SentencePiece使用的'▁'字符代表空格，这里替换回空格
-            t = t.replace('▁', ' ') 
-            # 将词元转换为UTF-8编码的字节格式
-            b = t.encode('utf-8')
-
-            # 将词元和对应的得分存入列表
-            tokens.append(b)
-            scores.append(s)
-
-        # 计算所有词元中的最大长度（以字节数计算）
-        max_token_length = max(len(t) for t in tokens)
-
-        # 将分词器的词元和得分写入二进制文件
-        tokenizer_bin = self.model_path.replace('.model', '.bin')
-        with open(tokenizer_bin, 'wb') as f:
-            # 先写入最大词元长度
-            f.write(struct.pack("I", max_token_length))
-            # 依次写入每个词元的得分、长度和字节数据
-            for bytes, score in zip(tokens, scores):
-                f.write(struct.pack("fI", score, len(bytes)))  # 写入得分和字节长度
-                f.write(bytes)  # 写入词元的字节数据

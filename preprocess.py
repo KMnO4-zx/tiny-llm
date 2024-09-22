@@ -14,7 +14,7 @@ from tqdm import tqdm
 from tokenizer import Tokenizer
 
 DATA_CACHE_DIR = 'data'
-TOKENIZER_MODEL = "tok4096.model"
+TOKENIZER_MODEL = "./data/tok4096.model"
 
 
 # 定义分片处理函数
