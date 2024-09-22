@@ -36,13 +36,13 @@ pip install -r requirements.txt
 
 ### Step 1: 训练Tokenizer
 
-首先，我们需要训练一个Tokenizer，Tokenizer的作用是将文本转换为数字序列。我们使用的数据集是 [TinyStory](https://www.modelscope.cn/datasets/AI-ModelScope/TinyStories) ，一个小型的故事集合，TinyStory 包含由GPT-3.5和GPT-4合成生成的短篇故事数据集，这些故事仅使用有限词汇。Tokenizer的作用是将文本转换为数字序列，我们使用的Tokenizer是一个简单的字符级Tokenizer，即将文本中的字符映射为数字。使用以下命令即可下载数据集并训练Tokenizer。
+首先，我们需要为文本处理训练一个Tokenizer。Tokenizer的作用是将文本转换为数字序列，以便模型能够理解和处理。我们使用的数据集是 [TinyStory](https://www.modelscope.cn/datasets/AI-ModelScope/TinyStories) ，它是一个由GPT-3.5和GPT-4生成的小型故事数据集，包含简短的故事，且词汇量有限。在这个任务中，我们采用字符级Tokenizer，将文本中的每个字符映射为对应的数字。通过以下命令可以下载数据集并训练Tokenizer。
 
 ```bash
 python train_vocab.py --download True --vocab_size 4096
 ```
 
-llama2的词表大小为32000，因为TinyStory数据集较小，所用的单词量也比较少，所以我们将词表大小设置为4096。训练完成后，我们可以得到一个Tokenizer，Tokenizer的作用是将文本转换为数字序列，也可以将数字序列转换为文本。
+LLaMA2 的词表大小为 32,000，但由于 TinyStory 数据集较小，词汇量有限，我们将词表大小设置为 4,096。训练完成后，我们得到的 Tokenizer 能够将文本转换为数字序列，也可以将数字序列还原为文本。
 
 ```python
 def download_file(url: str, fname: str, chunk_size=1024):
@@ -114,9 +114,13 @@ def train_vocab(vocab_size: int=32000, num_shards: int=20):
     print("Done.")
 ```
 
-在这部分中，我们使用了 SentencePiece 库来训练 Tokenizer，首先我们需要将数据集中的文本提取出来，然后使用SentencePiece库训练Tokenizer。训练完成后，我们会在`data`目录下获得一个`tok4096.model`文件，这个文件就是我们训练好的Tokenizer。
+在本部分中，我们使用了 `SentencePiece` 库来训练自定义的 `Tokenizer`。首先，我们需要从 `TinyStory` 数据集中提取文本内容，作为训练的输入数据。`SentencePiece` 是一种基于子词单元的分词算法，能够有效处理不同语言中的词汇碎片化问题。
 
-接下来，我们创建一个`Tokenizer`类，可以让我们更好的使用Tokenizer。相关代码在`tokenizer.py`文件中。
+训练 `Tokenizer` 时，`SentencePiece` 会自动生成两个文件：`tok4096.model` 和 `tok4096.vocab`，其中 `tok4096.model` 是我们训练好的模型文件，位于 `data` 目录下。这个文件可以用于将文本数据转换为 `Token` 序列，也可以将 `Token` 序列还原为文本。
+
+为了更便捷地使用这个 `Tokenizer`，我们还在 `tokenizer.py` 文件中定义了一个 `Tokenizer` 类。这个类封装了 `Tokenizer` 的常用操作，例如文本编码和解码功能，并支持加载我们训练好的模型文件。通过这个类，我们可以轻松地将文本转换为模型可接受的数字序列，或将预测结果转化为可读的文本。
+
+具体的代码实现和细节可以在 `tokenizer.py` 文件中找到，接下来我们将进一步展示如何使用该类来处理 `TinyStory` 数据集中的故事文本。
 
 ```python
 class Tokenizer:
@@ -182,9 +186,15 @@ class Tokenizer:
         return self.sp_model.decode(t)
 ```
 
-可以看到，在这个类中我们先是初始化了一些特殊的 token ID，然后定义了`encode`和`decode`方法，分别用于将文本转换为数字序列和将数字序列转换为文本。
+在这个 `Tokenizer` 类中，我们首先初始化了一些特殊的 token ID，这些特殊 tokens 在自然语言处理任务中有着重要作用，分别用于填充、处理未识别的词汇、表示句子的开头和结尾等。在模型训练和推理过程中，正确处理这些特殊 tokens 对于提升模型性能至关重要。
 
-此处大家也可以用以下代码测试Tokenizer。
+接着，我们定义了两个关键方法：
+
+1. encode 方法：该方法负责将输入文本转换为 token ID 序列。通过加载预训练的 Tokenizer 模型，我们可以对文本进行分词，将其拆解为词或子词，并将其映射为相应的数字表示。这个数字序列可以被模型接受用于训练和推理。
+
+2. decode 方法：与 encode 方法相反，decode 方法用于将 token ID 序列还原为可读的文本。它将数字序列转换回对应的 tokens，并拼接成完整的文本，从而可以对模型的输出进行解释和展示。
+
+这些方法的定义使得我们在使用过程中，可以非常方便地在文本与数字序列之间进行转换，为模型的输入与输出提供接口。大家可以使用以下代码测试 `Tokenizer` 的功能，验证其是否能够正确地将文本转换为数字序列，或者将数字序列还原为文本。
 
 ```python
 # 测试 Tokenizer
@@ -200,7 +210,7 @@ Hello, world!
 
 ### Step 2: 数据预处理
 
-在训练模型之前，我们需要对数据进行预处理，将文本转换为数字序列。
+在训练模型之前，首先需要对数据进行预处理。这一步的核心任务是将文本数据转换为模型能够理解的数字序列。具体来说，文本中的每个字符、单词或子词都需要被映射为一个唯一的数字 ID，这样模型才能处理这些数据。
 
 ```python
 # 定义分片处理函数
@@ -303,15 +313,23 @@ class Task:
             yield x, y
 ```
 
-在这部分中，首先我们定义了一个`process_shard`函数，用于处理数据分片，将其中的文本进行分词并保存为二进制文件，可以更高效的处理和加载数据。然后我们定义了`pretokenize`函数，用于对多个数据分片进行批量处理。
+在这部分中，首先定义了 `process_shard` 函数，用于处理数据分片。该函数的主要功能是将文本数据分词后，转换为更高效的二进制文件格式，以便后续更快速地加载和处理数据。
 
-接着定义了一个`PretokDataset`类，用于加载已经预处理好的数据。使用`torch.utils.data.IterableDataset`类来定义数据集，这个类可以让我们更好的处理数据。在这个类中，我们定义了`__iter__`方法，用于生成数据。我们可以使用以下代码测试数据集。最后定义了一个`Task`类，用于迭代数据集，生成模型输入和输出。
+接下来，我们定义了 `pretokenize` 函数，用于批量处理多个数据分片。通过这一函数，所有数据可以并行处理，进一步加快预处理的速度。
+
+然后，我们设计了一个 `PretokDataset` 类，用于加载已预处理好的数据集。我们继承了 `torch.utils.data.IterableDataset` 来定义该数据集，这使得我们可以更灵活、高效地处理数据。在这个类中，核心是 `__iter__` 方法，它负责生成用于训练的数据批次。
+
+最后，我们还定义了一个 `Task` 类，专门用于迭代数据集，并生成模型所需的输入和目标输出。这一部分的设计确保了数据流的顺畅对接，为模型训练提供了标准化的数据输入。可以通过以下代码来测试预处理后的数据集。
 
 ### Step 3: 训练模型
 
 在数据预处理完成后，我们就可以开始训练模型了。我们使用的模型是一个和LLama2结构一样的 Decoder only Transformer模型，使用Pytorch实现。相关代码在`model.py`文件中。此处不再赘述，源码中有详细的中文注释，且我们在之前的文章中也有详细的介绍。
 
 在模型这一部分可以重点看一下生成式模型是如何实现生成token的，可以查看`model.py`文件中的`Transforerm`类中的`generate`方法。
+
+在完成数据预处理后，我们就可以开始训练模型了。我们使用的模型是一个与 LLaMA2 结构相同的 Decoder-only Transformer 模型，采用 PyTorch 实现。具体的实现细节已经包含在 `model.py` 文件中，在此不再赘述。该源码中包含详细的中文注释，此外我们在之前的文章中也对模型架构进行了深入介绍。
+
+在模型部分，建议重点关注生成式模型如何生成 token 的过程。可以参考 `model.py` 文件中的 `Transformer` 类，尤其是 `generate` 方法的实现，它展示了模型如何基于已有的上下文生成后续 token 的机制。
 
 ```python
 @torch.inference_mode()
@@ -346,7 +364,7 @@ class Task:
         return idx
 ```
 
-可以看到，在这个方法中，我们首先获取序列中最后一个位置的logits，然后根据logits生成新的token。然后新的生成的token会被添加到序列中，然后继续生成新的token。这样就可以生成一个完整的文本。那接下来，使用以下命令训练模型。
+在 generate 方法中，我们首先获取序列中最后一个位置的 logits，然后基于这些 logits 生成新的 token。接着，生成的新 token 会被添加到序列中，模型随后会继续生成下一个 token。通过这种迭代过程，我们能够生成完整的文本。接下来，您可以使用以下命令开始训练模型。
 
 ```bash
 python train.py
