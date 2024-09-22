@@ -1,6 +1,6 @@
 # Tiny-LLM
 
-此项目在于实现一个简单的大语言模型，从训练tokenizer开始，到训练模型，再到使用模型生成文本。仅使用Numpy和Python即可实现一个简单的大语言模型训练，显存使用2G左右。以下为项目效果展示。
+此项目在于实现一个简单的大语言模型，从训练tokenizer开始，到训练模型，再到使用模型生成文本。仅使用Numpy和Pytorch即可实现一个简单的大语言模型训练，显存使用2G左右。以下为项目效果展示。
 
 <div align="center">
     <img src="images/model_show.png" alt="RAG" width="85%">
