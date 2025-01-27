@@ -1,5 +1,4 @@
 import math
-import struct
 import inspect
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple
@@ -7,21 +6,40 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from transformers import PreTrainedModel, AutoTokenizer
+from transformers.modeling_outputs import CausalLMOutputWithPast
+from transformers import PretrainedConfig
 
-@dataclass
-class ModelArgs:
-    # 自定义超参数
-    dim: int = 288  # 模型维度
-    n_layers: int = 6  # Transformer层数
-    n_heads: int = 6  # 注意力机制的头数
-    n_kv_heads: Optional[int] = 6  # 键/值头数，如果未指定，则默认为n_heads
-    vocab_size: int = 32000  # 词汇表大小
-    hidden_dim: Optional[int] = None  # 隐藏层维度，如果未指定，则使用其他规则确定
-    multiple_of: int = 32  # MLP隐藏层大小是这个数的倍数
-    norm_eps: float = 1e-5  # 归一化层的epsilon值
-    max_seq_len: int = 256  # 最大序列长度
-    dropout: float = 0.0  # 丢弃率
 
+class ModelConfig(PretrainedConfig):
+    model_type = "Tiny-K"
+    def __init__(
+            self,
+            dim: int = 768,
+            n_layers: int = 12,
+            n_heads: int = 16,
+            n_kv_heads: int = 8,
+            vocab_size: int = 6144,
+            hidden_dim: int = None,
+            multiple_of: int = 64,
+            norm_eps: float = 1e-5,
+            max_seq_len: int = 512,
+            dropout: float = 0.0,
+            flash_attn: bool = True,
+            **kwargs,
+    ):
+        self.dim = dim
+        self.n_layers = n_layers
+        self.n_heads = n_heads
+        self.n_kv_heads = n_kv_heads
+        self.vocab_size = vocab_size
+        self.hidden_dim = hidden_dim
+        self.multiple_of = multiple_of
+        self.norm_eps = norm_eps
+        self.max_seq_len = max_seq_len
+        self.dropout = dropout
+        self.flash_attn = flash_attn
+        super().__init__(**kwargs)
 
 class RMSNorm(nn.Module):
     def __init__(self, dim: int, eps: float):
@@ -117,7 +135,7 @@ def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
     )
 
 class Attention(nn.Module):
-    def __init__(self, args: ModelArgs):
+    def __init__(self, args: ModelConfig):
         super().__init__()
         # 根据是否指定n_kv_heads，确定用于键（key）和值（value）的头的数量。
         self.n_kv_heads = args.n_heads if args.n_kv_heads is None else args.n_kv_heads
@@ -230,7 +248,7 @@ class MLP(nn.Module):
     
 
 class DecoderLayer(nn.Module):
-    def __init__(self, layer_id: int, args: ModelArgs):
+    def __init__(self, layer_id: int, args: ModelConfig):
         super().__init__()
         # 定义多头注意力的头数
         self.n_heads = args.n_heads
@@ -262,11 +280,12 @@ class DecoderLayer(nn.Module):
         out = h + self.feed_forward.forward(self.ffn_norm(h))
         return out
 
-class Transformer(nn.Module):
-    last_loss: Optional[torch.Tensor]
+class Transformer(PreTrainedModel):
+    config_class = ModelConfig  # 配置类
+    last_loss: Optional[torch.Tensor] # 记录最后一次计算的损失
 
-    def __init__(self, args: ModelArgs):
-        super().__init__()
+    def __init__(self, args: ModelConfig = None):
+        super().__init__(args)
         # 初始化模型参数
         self.args = args
         # 词汇表大小
@@ -304,6 +323,8 @@ class Transformer(nn.Module):
 
         # 初始化最后一次前向传播的损失属性
         self.last_loss = None
+        self.OUT = CausalLMOutputWithPast()  # 输出容器
+        self._no_split_modules = [name for name, _ in self.named_modules()]  # 不分割的模块列表
 
     def _init_weights(self, module):
         # 初始化权重的函数
@@ -314,7 +335,21 @@ class Transformer(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
     
-    def forward(self, tokens: torch.Tensor, targets: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, tokens: torch.Tensor, targets: Optional[torch.Tensor] = None, **keyargs) -> torch.Tensor:
+        """
+        - tokens: Optional[torch.Tensor], 输入 token 张量。
+        - targets: Optional[torch.Tensor], 目标 token 张量。
+        - kv_cache: bool, 是否使用键值缓存。
+        - keyargs: 其他关键字参数。
+
+        - self.OUT: CausalLMOutputWithPast, 包含 logits 和损失。
+        """
+
+        if 'input_ids' in keyargs:
+            tokens = keyargs['input_ids']
+        if 'attention_mask' in keyargs:
+            targets = keyargs['attention_mask']
+
         # 前向传播函数
         _bsz, seqlen = tokens.shape
         # 通过词嵌入层和Dropout层
@@ -333,70 +368,31 @@ class Transformer(nn.Module):
         if targets is not None:
             # 如果给定了目标，计算损失
             logits = self.output(h)
-            self.last_loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1)
+            self.last_loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=0, reduction='none')
         else:
             # 推理时的小优化：只对最后一个位置的输出进行前向传播
             logits = self.output(h[:, [-1], :]) 
             self.last_loss = None
 
-        return logits
-    
-    def configure_optimizers(self, weight_decay, learning_rate, betas, device_type):
-        # 获取所有需要更新的参数
-        param_dict = {pn: p for pn, p in self.named_parameters() if p.requires_grad}
-        
-        # 将参数分为需要权重衰减和不需要权重衰减的两组
-        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
-        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
-        optim_groups = [
-            {'params': decay_params, 'weight_decay': weight_decay},
-            {'params': nodecay_params, 'weight_decay': 0.0}
-        ]
-        
-        # 打印参数数量信息
-        num_decay_params = sum(p.numel() for p in decay_params)
-        num_nodecay_params = sum(p.numel() for p in nodecay_params)
-        print(f"num decayed parameter tensors: {len(decay_params)}, with {num_decay_params:,} parameters")
-        print(f"num non-decayed parameter tensors: {len(nodecay_params)}, with {num_nodecay_params:,} parameters")
-        
-        # 根据设备类型选择使用标准 AdamW 或其融合版本
-        fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
-        use_fused = fused_available and device_type == 'cuda'
-        extra_args = dict(fused=True) if use_fused else dict()
-        optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
-        print(f"using fused AdamW: {use_fused}")
+        # 设置输出
+        self.OUT.__setitem__('logits', logits)
+        self.OUT.__setitem__('last_loss', self.last_loss)
+        return self.OUT
 
-        return optimizer
-    
-    def estimate_mfu(self, fwdbwd_per_iter, dt):
-        """ 估计模型的 FLOPs 利用率 (MFU) 单位：A100 bfloat16 的峰值 FLOPS """
-        # 计算每次迭代的 FLOPs 数量（参考 PaLM 论文的附录 B）
-        # PaLM: Scaling Language Modeling with Pathways: https://arxiv.org/abs/2204.02311
-        N = sum(p.numel() for p in self.parameters())
-        cfg = self.args
-        L, H, Q, T = cfg.n_layers, cfg.n_heads, cfg.dim//cfg.n_heads, cfg.max_seq_len
-        flops_per_token = 6*N + 12*L*H*Q*T
-        flops_per_fwdbwd = flops_per_token * T
-        flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
-        
-        # 将 FLOPs 吞吐量表示为 A100 bfloat16 峰值 FLOPS 的比例
-        flops_achieved = flops_per_iter * (1.0/dt) # 每秒计算的 FLOPs
-        flops_promised = 312e12 # A100 GPU bfloat16 的峰值 FLOPS 为 312 TFLOPS
-        mfu = flops_achieved / flops_promised
-        return mfu
     
     @torch.inference_mode()
-    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+    def generate(self, idx, stop_id=None, max_new_tokens=256, temperature=1.0, top_k=None):
         """
         给定输入序列 idx（形状为 (bz,seq_len) 的长整型张量），通过多次生成新 token 来完成序列。
         在 model.eval() 模式下运行。效率较低的采样版本，没有使用键k/v cache。
         """
+        index = idx.shape[1]
         for _ in range(max_new_tokens):
             # 如果序列上下文过长，截断它到最大长度
             idx_cond = idx if idx.size(1) <= self.args.max_seq_len else idx[:, -self.args.max_seq_len:]
             
             # 前向传播获取序列中最后一个位置的 logits
-            logits = self(idx_cond)
+            logits = self(idx_cond).logits
             logits = logits[:, -1, :] # 只保留最后一个时间步的输出
             
             if temperature == 0.0:
@@ -411,15 +407,19 @@ class Transformer(nn.Module):
                 probs = F.softmax(logits, dim=-1)
                 idx_next = torch.multinomial(probs, num_samples=1)
             
+
+            if idx_next == stop_id:
+                break
+
             # 将采样的索引添加到序列中并继续
             idx = torch.cat((idx, idx_next), dim=1)
 
-        return idx
+        return idx[:, index:] # 只返回生成的token
 
 if __name__ == '__main__':
-    args = ModelArgs()
+    args = ModelConfig()
     # LLaMA2Model.forward 接受两个参数，tokens和targets，其中tokens是输入的张量, 应为int类型
-    x = torch.randint(0, 32000, (1, 50)) # [bs, seq_len]
+    x = torch.randint(0, 8192, (1, 50)) # [bs, seq_len]
     # 实例化LLaMA2Model
     model = Transformer(args=args)
     # 计算model的全部参数
@@ -427,4 +427,7 @@ if __name__ == '__main__':
     print('Number of parameters:', num_params)
 
     out = model(x)
-    print(out.shape) # [batch_size, 1, vocab_size]
+    print(out['logits'].shape) # torch.Size([1, 1, 8192])
+
+    tokenizer = AutoTokenizer.from_pretrained('./tokenizer_kmno4/')
+    print(tokenizer('你好 阿卡莎 嘿嘿hi').data['input_ids'])
