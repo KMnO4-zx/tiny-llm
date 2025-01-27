@@ -1,8 +1,7 @@
 # Tiny-LLM
 
-<div style="display: flex; justify-content: center;">
-  <img src="./images/sft_sample.png" alt="SFT Sample" style="margin: 2px; width: 50%;">
-  <img src="./images/pretrain_sample.png" alt="Pretrain Sample" style="margin: 2px; width: 50%;">
+<div align="center">
+  <img src="./images/sft_sample.png" alt="Pretrain Dataset" style="width:80%;">
 </div>
 
 ## 00 写在最前
