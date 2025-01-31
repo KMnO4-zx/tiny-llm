@@ -13,7 +13,7 @@ from contextlib import nullcontext
 from transformers import AutoTokenizer
 
 from k_model import ModelConfig, Transformer
-from dataset import PretrainDataset, SkyWorkPretrainDataset, SFTDataset
+from dataset import SFTDataset
 
 import swanlab
 
@@ -24,27 +24,20 @@ def Logger(content):
     print(content)
 
 def get_lr(it, all):
-    """
-    根据当前的训练迭代步数 it 返回当前的学习率值。
-    学习率调整策略包括线性预热、余弦退火和最小学习率限制。
-    """
     warmup_iters = args.warmup_iters
     lr_decay_iters = all
     min_lr = args.learning_rate / 10
 
-    # 1) 线性预热阶段，在 warmup_iters 之前，学习率线性增加到目标学习率
     if it < warmup_iters:
         return args.learning_rate * it / warmup_iters
     
-    # 2) 如果迭代步数超过 lr_decay_iters，返回最小学习率 min_lr
     if it > lr_decay_iters:
         return min_lr
     
-    # 3) 余弦退火阶段，在 warmup_iters 和 lr_decay_iters 之间，学习率逐渐降低
     decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
-    assert 0 <= decay_ratio <= 1 # 确保衰减比在合法范围内
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # 余弦函数计算衰减系数，范围为0到1
-    return min_lr + coeff * (args.learning_rate - min_lr) # 根据衰减系数调整学习率
+    assert 0 <= decay_ratio <= 1
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
+    return min_lr + coeff * (args.learning_rate - min_lr)
 
 def train_epoch(epoch):
     start_time = time.time()
@@ -95,66 +88,89 @@ def train_epoch(epoch):
             model.eval()
             ckp = f'{args.save_dir}/sft_dim{lm_config.dim}_layers{lm_config.n_layers}_vocab_size{lm_config.vocab_size}.pth'
 
-            state_dict = model.state_dict()
+            # 处理多卡保存
+            state_dict = model.module.state_dict() if isinstance(model, torch.nn.DataParallel) else model.state_dict()
             torch.save(state_dict, ckp)
             model.train()
         
-        if (step + 1) % 10000 == 0:
+        if (step + 1) % 20000 == 0:
             model.eval()
             ckp = f'{args.save_dir}/sft_dim{lm_config.dim}_layers{lm_config.n_layers}_vocab_size{lm_config.vocab_size}_step{step+1}.pth'
 
-            state_dict = model.state_dict()
+            state_dict = model.module.state_dict() if isinstance(model, torch.nn.DataParallel) else model.state_dict()
             torch.save(state_dict, ckp)
             model.train()
 
 
 def init_model():
-    tokenizer = AutoTokenizer.from_pretrained('./tokenizer_k')
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    tokenizer = AutoTokenizer.from_pretrained('./tokenizer_k/')
 
     model = Transformer(lm_config)
-    ckp = f'./base_model/SkyWork_pretrain_768_12_6144.pth'
+
+    ckp = './base_monkey_215M/pretrain_1024_18_6144.pth'
     state_dict = torch.load(ckp, map_location=args.device)
     unwanted_prefix = '_orig_mod.'
     for k, v in list(state_dict.items()):
         if k.startswith(unwanted_prefix):
             state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
     model.load_state_dict(state_dict, strict=False)
-
-    Logger(f'LLM总参数量：{sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6:.3f} 百万')
+    
+    # 多卡初始化
+    num_gpus = torch.cuda.device_count()
+    if num_gpus > 1:
+        Logger(f"Using {num_gpus} GPUs with DataParallel!")
+        model = torch.nn.DataParallel(model)
+    
     model = model.to(args.device)
+    Logger(f'LLM总参数量：{count_parameters(model) / 1e6:.3f} 百万')
     return model, tokenizer
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Tiny-LLM SFT Training")
-    parser.add_argument("--out_dir", type=str, default="sft_model", help="Output directory")
+    parser = argparse.ArgumentParser(description="Tiny-LLM Pretraining")
+    parser.add_argument("--out_dir", type=str, default="BeelGroup_sft_model_215M", help="Output directory")
     parser.add_argument("--epochs", type=int, default=1, help="Number of epochs")
-    parser.add_argument("--batch_size", type=int, default=128, help="Batch size")
+    parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
     parser.add_argument("--learning_rate", type=float, default=2e-4, help="Learning rate")
     parser.add_argument("--device", type=str, default="cuda:0" if torch.cuda.is_available() else "cpu", help="Device to use")
     parser.add_argument("--dtype", type=str, default="bfloat16", help="Data type")
     parser.add_argument("--use_swanlab", type=bool, default=True, help="Use Weights & Biases")
     parser.add_argument("--num_workers", type=int, default=4, help="Number of workers for data loading")
-    parser.add_argument("--data_path", type=str, default="/root/datasets/BelleGroup/BelleGroup_sft.jsonl", help="Path to training data")
-    parser.add_argument("--accumulation_steps", type=int, default=8, help="Gradient accumulation steps")
+    parser.add_argument("--data_path", type=str, default="/home/user/szx/dataset/BelleGroup/sft.jsonl", help="Path to training data")
+    parser.add_argument("--accumulation_steps", type=int, default=4, help="Gradient accumulation steps")
     parser.add_argument("--grad_clip", type=float, default=1.0, help="Gradient clipping threshold")
     parser.add_argument("--warmup_iters", type=int, default=0, help="Number of warmup iterations")
     parser.add_argument("--log_interval", type=int, default=100, help="Logging interval")
     parser.add_argument("--save_interval", type=int, default=1000, help="Model saving interval")
+    # 添加多卡参数
+    parser.add_argument("--gpus", type=str, default='0,1', help="Comma-separated GPU IDs (e.g. '0,1,2')")
 
     args = parser.parse_args()
+
+    # 设置可见GPU
+    if args.gpus is not None:
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
+        # 自动设置主设备为第一个GPU
+        if torch.cuda.is_available():
+            args.device = "cuda:0"
+        else:
+            args.device = "cpu"
 
     if args.use_swanlab:
         swanlab.login(api_key='BIYVGq2rfWmD9sFMCehUG')
         run = swanlab.init(
-            # 设置项目
             project="Tiny-LLM",
-            experiment_name="SFT-A100-dim768-layers12-vocab6144",
-            # 跟踪超参数与实验元数据
+            experiment_name="BelleGropu-sft-215M",
             config=args,
         )
 
-    lm_config = ModelConfig()
+    lm_config = ModelConfig(
+        dim=1024,
+        n_layers=18,
+    )
     max_seq_len = lm_config.max_seq_len
     args.save_dir = os.path.join(args.out_dir)
     os.makedirs(args.save_dir, exist_ok=True)

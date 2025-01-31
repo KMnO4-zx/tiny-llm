@@ -417,17 +417,29 @@ class Transformer(PreTrainedModel):
         return idx[:, index:] # 只返回生成的token
 
 if __name__ == '__main__':
-    args = ModelConfig()
-    # LLaMA2Model.forward 接受两个参数，tokens和targets，其中tokens是输入的张量, 应为int类型
-    x = torch.randint(0, 8192, (1, 50)) # [bs, seq_len]
+    tokenizer = AutoTokenizer.from_pretrained("/home/user/szx/code/k-llm/tokenizer_k")
+    args = ModelConfig(
+        dim=1024,
+        n_layers=18,
+    )
     # 实例化LLaMA2Model
     model = Transformer(args=args)
     # 计算model的全部参数
     num_params = sum(p.numel() for p in model.parameters())
-    print('Number of parameters:', num_params)
+    print(f'LLM总参数量：{num_params / 1e6:.3f} 百万')
 
-    out = model(x)
-    print(out['logits'].shape) # torch.Size([1, 1, 8192])
+    prompt = "你好呀，今天吃什么呢？你过得怎么样嘞？"
+    text = f"{tokenizer.bos_token}{prompt}{tokenizer.eos_token}"
+    print(f"Input text: {text}")
 
-    tokenizer = AutoTokenizer.from_pretrained('./tokenizer_kmno4/')
-    print(tokenizer('你好 阿卡莎 嘿嘿hi').data['input_ids'])
+    input_id = tokenizer(text).data['input_ids']
+    print("input_ids :", input_id)
+    print("dcode_str :", tokenizer.decode(input_id))
+
+    X = torch.tensor(input_id[:-1]).unsqueeze(0)
+    Y = torch.tensor(input_id[1:]).unsqueeze(0)
+    print("X shape :", X.shape)
+    print("Y shape :", Y.shape)
+
+    # 将输入张量传入模型
+    output = model(X, Y)
