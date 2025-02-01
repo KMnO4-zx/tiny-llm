@@ -160,7 +160,7 @@ if __name__ == "__main__":
             args.device = "cpu"
 
     if args.use_swanlab:
-        swanlab.login(api_key='BIYVGq2rfWmD9sFMCehUG')
+        swanlab.login(api_key='your swanlab key')
         run = swanlab.init(
             project="Tiny-LLM",
             experiment_name="BelleGropu-sft-215M",

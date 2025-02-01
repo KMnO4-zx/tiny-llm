@@ -171,7 +171,7 @@ def eval_tokenizer(tokenizer_path: str) -> None:
 
 def main():
     # 配置路径
-    data_path = "/home/user/szx/dataset/jingyaogong/minimind_dataset/tokenizer_train.jsonl"
+    data_path = "tokenizer_train.jsonl"
     save_dir = "tokenizer_k"
 
     # 训练tokenizer
