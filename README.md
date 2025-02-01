@@ -1,33 +1,24 @@
 # Tiny-LLM
 
 <div align="center">
-  <img src="./images/sft_sample.png" alt="Pretrain Dataset" style="width:80%;">
+  <img src="./images/web_demo.png" alt="Pretrain Dataset" style="width:100%;">
 </div>
 
 ## 00 写在最前
 
 > *其实我很久之前就像要动手使用 torch 实现一个小型的 LLM，但是碍于一直没有大片空闲的时间。趁着过年在家整好手头有一些算力资源，就动手尝试训练了一下。我会在下面简单记录我的实验过程，也会对代码做详细的介绍和注释。如有纰漏，还请见谅~*
 
-模型大小为8.2千万参数的Tiny-LLM模型，在单卡A100上进行预训练和SFT训练。Pretrain阶段使用 [SkyWork 150B](https://huggingface.co/datasets/Skywork/SkyPile-150B) 数据中的 10B tokens 进行预训练，耗时 18 小时。SFT 阶段使用 [BelleGroup](https://huggingface.co/datasets/BelleGroup/train_3.5M_CN) 350万条多轮对话中文数据集在单卡A100 进行训练，耗时 5 小时。
+*K-Model-215M 是一个拿来练手的基于 Pytorch 实现的中文 Tiny-LLM*
 
-> 注：模型同时在单卡 A6000 （训练参数设置完全相同）进行训练，Pretrain 阶段耗时 36 小时，SFT 阶段耗时 12 小时。
+*Pretrain 阶段在 Seq-Monkey 10B token的中文语料，在 512 长度，4×A100 训练 24 小时*
 
-在 Pretrain 阶段我也产生过了使用不同规模的参数量的模型进行训练，如下图所示蓝色loss曲线为 2.1 千万参数的模型，橙色loss曲线为 8.2 千万参数的模型。在相同训练参数设置下，8.2 千万参数的模型在可以更快的达到loss收敛的拐点。我在这个点做过多次 step model 保存，当预训练达到拐点时模型开始学会说一些连贯的话，出现类似“涌现”的现象。但不管loss的拐点来的快还是慢，他们最终的loss都会收敛到差不多的程度。但模型的表现效果确实天差地别。所以在大模型 Pretrain 阶段 除了 loss 的拐点外，其实loss的收敛程度并不能代表模型的最终表现效果。
+*SFT 阶段在 BelleGroup 350万条中文指令,4×A100 训练4小时，在此感谢 InternStudio 提供的算力支持！*
 
-<div align="center">
-  <img src="images/pretrain-faind.png" alt="Pretrain Dataset" style="width:50%;">
-</div>
+*之前就对大模型的模型结构做过细致的剖析，但从没有实际上手从零训练过 LLM*
 
-还有就是想向大家强烈推荐 [Swanlab](https://swanlab.cn/)，这是一个非常好用的实验管理平台，可以完全平替 wandb，最重要的是 Swablab 可以在手机上查看训练进度，无敌好用。
+*这次从零训练LLM，算是对自己的一个小小的突破（遇到了很多意料之外的问题，幸好都解决了）*
 
-<div align="center">
-  <img src="images/swanlab.png" alt="Pretrain Dataset" style="width:50%;">
-</div>
-
-> 注：Swanlab 是我在实验室实习时使用的实验管理平台，非常好用，推荐大家使用。
-
-***总的来说，自己第一次动手写和训练大模型确实带来的成就感蛮足的。今天就先写到这里，后续我也会在这个repo的基础上做一些 tiny-visionLLM，tiny-MoELLM之类的，如果有大佬想一起搞，那求之不得哇~***
-
+***纸上得来终觉浅，绝知此事要躬行***
 
 ## Usage
 

@@ -3,7 +3,7 @@ import pickle
 from contextlib import nullcontext
 import torch
 from k_model import ModelConfig, Transformer
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import argparse
 
 class TextGenerator:
@@ -35,14 +35,16 @@ class TextGenerator:
         self.ctx = nullcontext() if self.device_type == 'cpu' else torch.amp.autocast(device_type=self.device_type, dtype=ptdtype)
         
         # 加载模型检查点文件
-        checkpoint_dict = torch.load(self.checkpoint, map_location=self.device)  # 加载模型参数 # 初始化模型参数
-        self.model = Transformer(ModelConfig())  # 实例化 Transformer 模型
-        sunwanted_prefix = '_orig_mod.'
-        for k, v in list(checkpoint_dict.items()):
-            if k.startswith(sunwanted_prefix):
-                checkpoint_dict[k[len(sunwanted_prefix):]] = checkpoint_dict.pop(k)
-        self.model.load_state_dict(checkpoint_dict, strict=False)
+        # checkpoint_dict = torch.load(self.checkpoint, map_location=self.device)  # 加载模型参数 # 初始化模型参数
+        # self.model = Transformer(ModelConfig())  # 实例化 Transformer 模型
+        # sunwanted_prefix = '_orig_mod.'
+        # for k, v in list(checkpoint_dict.items()):
+        #     if k.startswith(sunwanted_prefix):
+        #         checkpoint_dict[k[len(sunwanted_prefix):]] = checkpoint_dict.pop(k)
+        # self.model.load_state_dict(checkpoint_dict, strict=False)
         
+        self.model = AutoModelForCausalLM.from_pretrained(self.checkpoint, trust_remote_code=True, torch_dtype=torch.bfloat16)
+
         # 计算模型参数量
         num_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
         print(f"Model has {num_params} parameters.")
@@ -133,21 +135,21 @@ if __name__ == "__main__":
         "单片机是什么？",
         "你是谁？",
     ]
-    generator = TextGenerator(checkpoint='sft_model/sft_dim768_layers12_vocab_size6144.pth')  # 初始化生成器
+    generator = TextGenerator(checkpoint='./k-model-215M/')  # 初始化生成器
     for i in range(len(sft_prompt_datas)):
         samples = generator.sft_sample(start=sft_prompt_datas[i], num_samples=1, max_new_tokens=512, temperature=0.75)
         print(f"\nSample {i+1}:\nQuestion: {sft_prompt_datas[i]} \nAI answer: {samples[0]}\n{'-'*20}")  # 打印生成的样本并用分隔线分割
 
     
-    print("\n ------------------- Pretrain Sample ------------------- \n")
+    # print("\n ------------------- Pretrain Sample ------------------- \n")
 
-    pretrain_prompt_datas = [
-        '<|im_start|>近年来，单片机以其体积小、价格廉、面向控制等独特优点',
-        '<|im_start|>明正德年间，迟姓由云南迁来居住，因靠磨山',
-        '<|im_start|>中国矿业大学-北京（CUMTB）是一所以矿业为特色，工',
-    ]
+    # pretrain_prompt_datas = [
+    #     '<|im_start|>近年来，单片机以其体积小、价格廉、面向控制等独特优点',
+    #     '<|im_start|>明正德年间，迟姓由云南迁来居住，因靠磨山',
+    #     '<|im_start|>中国矿业大学-北京（CUMTB）是一所以矿业为特色，工',
+    # ]
 
-    generator = TextGenerator(checkpoint='base_model/SkyWork_pretrain_768_12_6144.pth')  # 初始化生成器
-    for i in range(len(pretrain_prompt_datas)):
-        samples = generator.pretrain_sample(start=pretrain_prompt_datas[i], num_samples=1, max_new_tokens=50, temperature=0.75)
-        print(f"\nSample {i+1}:\nQuestion: {pretrain_prompt_datas[i]} \nAI answer: {samples[0]}\n{'-'*20}")  # 打印生成的样本并用分隔线分割
+    # generator = TextGenerator(checkpoint='base_model/SkyWork_pretrain_768_12_6144.pth')  # 初始化生成器
+    # for i in range(len(pretrain_prompt_datas)):
+    #     samples = generator.pretrain_sample(start=pretrain_prompt_datas[i], num_samples=1, max_new_tokens=50, temperature=0.75)
+    #     print(f"\nSample {i+1}:\nQuestion: {pretrain_prompt_datas[i]} \nAI answer: {samples[0]}\n{'-'*20}")  # 打印生成的样本并用分隔线分割
