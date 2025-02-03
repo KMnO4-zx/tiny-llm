@@ -20,6 +20,9 @@
 
 ***纸上得来终觉浅，绝知此事要躬行***
 
+*ModelScope Link: https://www.modelscope.cn/models/kmno4zx/K-Model-215M*  
+*ModelScope 创空间：https://www.modelscope.cn/studios/kmno4zx/K-Model-215M*
+
 ## Usage
 
 1. 首先默认大家都是安装好 CUDA 的 Pytorch的，然后 `pip install -r requirements.txt` 安装依赖。
