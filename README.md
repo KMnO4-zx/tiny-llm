@@ -1,18 +1,49 @@
 # Tiny-LLM
 
 <div align="center">
-  <img src="./images/web_demo.png" alt="Pretrain Dataset" style="width:100%;">
+  <img src="./images/web_demo.png" alt="Tiny-LLM Web Demo" style="width:100%;">
 </div>
 
-## 00 写在最前
+## 🚀 项目概述
 
-> *其实我很久之前就像要动手使用 torch 实现一个小型的 LLM，但是碍于一直没有大片空闲的时间。趁着过年在家整好手头有一些算力资源，就动手尝试训练了一下。我会在下面简单记录我的实验过程，也会对代码做详细的介绍和注释。如有纰漏，还请见谅~*
+**Tiny-LLM** 是一个完整的中文小型大语言模型训练框架，基于 PyTorch 从零实现。本项目提供了从数据处理、模型训练到部署的完整流程，帮助您理解和实践大语言模型的训练过程。
 
-*K-Model-215M 是一个拿来练手的基于 Pytorch 实现的中文 Tiny-LLM*
+**K-Model-215M** 是使用本框架训练的 215M 参数中文语言模型，具备良好的中文理解和生成能力。
 
-*Pretrain 阶段在 Seq-Monkey 10B token的中文语料，在 512 长度，4×A100 训练 24 小时*
+## ✨ 这个仓库可以做什么？
 
-*SFT 阶段在 BelleGroup 350万条中文指令,4×A100 训练4小时，在此感谢 InternStudio 提供的算力支持！*
+### 🎯 核心功能
+- **🔧 完整的 LLM 训练流程**：从数据预处理到模型部署的端到端解决方案
+- **🤖 中文语言模型**：专门针对中文优化的 215M 参数模型
+- **💬 智能对话系统**：支持多轮对话的 Web 聊天界面
+- **📊 自定义模型训练**：可根据需求训练不同规模和用途的模型
+
+### 🛠️ 技术特性
+- **自定义 Tokenizer**：基于 BPE 算法的中文分词器（词表大小 6144）
+- **灵活的模型架构**：支持不同层数、头数和隐藏层维度的配置
+- **高效训练流程**：支持预训练和有监督微调两个阶段
+- **多种数据集格式**：支持预训练和对话数据集的处理
+- **实时训练监控**：集成 SwanLab 进行训练过程可视化
+
+### 📈 训练规模
+- **预训练阶段**：10B tokens 中文语料（Seq-Monkey），512 序列长度，4×A100 训练 24 小时
+- **SFT 阶段**：350万条中文指令（BelleGroup），4×A100 训练 4 小时
+- **模型参数**：215M 参数量，适合资源有限的环境
+
+### 🎨 应用场景
+- **🔬 研究学习**：理解大语言模型的训练原理和实现细节
+- **🏗️ 模型开发**：快速构建和测试自定义的中文语言模型
+- **💡 教学实验**：为 AI 教育提供完整的实践案例
+- **🚀 产品原型**：为中文 NLP 应用提供基础模型
+
+## 💻 在线体验
+
+- **ModelScope 模型**：https://www.modelscope.cn/models/kmno4zx/K-Model-215M
+- **ModelScope 创空间**：https://www.modelscope.cn/studios/kmno4zx/K-Model-215M
+
+## 🔮 作者的话
+
+> *其实我很久之前就想要动手使用 torch 实现一个小型的 LLM，但是碍于一直没有大片空闲的时间。趁着过年在家整好手头有一些算力资源，就动手尝试训练了一下。我会在下面简单记录我的实验过程，也会对代码做详细的介绍和注释。如有纰漏，还请见谅~*
 
 *之前就对大模型的模型结构做过细致的剖析，但从没有实际上手从零训练过 LLM*
 
@@ -20,19 +51,70 @@
 
 ***纸上得来终觉浅，绝知此事要躬行***
 
-*ModelScope Link: https://www.modelscope.cn/models/kmno4zx/K-Model-215M*  
-*ModelScope 创空间：https://www.modelscope.cn/studios/kmno4zx/K-Model-215M*
+## 🚀 快速开始
 
-## Usage
+### 📋 环境准备
 
-1. 首先默认大家都是安装好 CUDA 的 Pytorch的，然后 `pip install -r requirements.txt` 安装依赖。
-2. 下载数据集可以参考[`dataset_download.py`](dataset_download.py)文件。另外数据集也需要做一些处理，具体参考[`dataset_download.py`](dataset_download.py)文件。
-3. 训练 Tokenizer，可以直接使用本仓库的`tokenizer_k`，词表大小是 6144，可以直接使用。当然也可以训练自己的 Tokenizer，具体参考[`train_tokenizer.py`](./train_tokenizer.py)文件。（后续我会上传我训练tokenzer的文件到网盘，大家也可以稍微等等下载）
-4. 训练 Pretrain 阶段，可以参考[`pretrain.py`](./pretrain.py)文件。
-5. 训练 SFT 阶段，可以参考[`sft_full.py`](./sft_full.py)文件。
+```bash
+# 1. 确保已安装 CUDA 和 PyTorch
+# 2. 克隆仓库
+git clone https://github.com/KMnO4-zx/tiny-llm.git
+cd tiny-llm
+
+# 3. 安装依赖
+pip install -r requirements.txt
+```
+
+### 🎯 使用方式
+
+#### 方式一：直接使用预训练模型
+
+```bash
+# 启动 Web 对话界面
+streamlit run web_demo.py
+```
+
+#### 方式二：从零开始训练
+
+```bash
+# 1. 数据准备
+python dataset_download.py
+
+# 2. 训练 Tokenizer（可选，已提供训练好的 tokenizer_k）
+python train_tokenizer.py
+
+# 3. 预训练阶段
+python pretrain.py
+
+# 4. 有监督微调（SFT）
+python sft_full.py
+
+# 5. 模型导出
+python export_model.py
+```
+
+### 📁 文件结构
+
+```
+tiny-llm/
+├── README.md                 # 项目说明
+├── requirements.txt          # 依赖包
+├── k_model.py               # 模型定义
+├── dataset.py               # 数据集处理
+├── train_tokenizer.py       # 训练分词器
+├── pretrain.py              # 预训练脚本
+├── sft_full.py              # 有监督微调脚本
+├── export_model.py          # 模型导出
+├── web_demo.py              # Web 演示界面
+├── dataset_download.py      # 数据集下载
+├── sample.py                # 模型推理示例
+└── tokenizer_k/             # 预训练分词器
+```
 
 
-## 01 Tokenizer
+## 🔧 技术实现详解
+
+### 01 Tokenizer
 
 在自然语言处理 (NLP) 中，Tokenizer 是一种将文本分解为较小单位（称为 token）的工具。这些 token 可以是词、子词、字符，甚至是特定的符号。Tokenization 是 NLP 中的第一步，直接影响后续处理和分析的效果。不同类型的 tokenizer 适用于不同的应用场景，以下是几种常见的 tokenizer 及其特点。
 
