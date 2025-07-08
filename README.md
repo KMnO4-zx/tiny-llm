@@ -41,6 +41,19 @@
 - **ModelScope 模型**：https://www.modelscope.cn/models/kmno4zx/K-Model-215M
 - **ModelScope 创空间**：https://www.modelscope.cn/studios/kmno4zx/K-Model-215M
 
+## 📖 目录索引
+
+- [🚀 项目概述](#-项目概述)
+- [✨ 这个仓库可以做什么？](#-这个仓库可以做什么)
+- [💻 在线体验](#-在线体验)
+- [🚀 快速开始](#-快速开始)
+- [🔧 技术实现详解](#-技术实现详解)
+  - [01 Tokenizer](#01-tokenizer)
+  - [02 Dataset](#02-dataset)
+  - [03 Model](#03-model)
+  - [04 Training](#04-training)
+- [📚 参考链接](#-参考链接)
+
 ## 🔮 作者的话
 
 > *其实我很久之前就想要动手使用 torch 实现一个小型的 LLM，但是碍于一直没有大片空闲的时间。趁着过年在家整好手头有一些算力资源，就动手尝试训练了一下。我会在下面简单记录我的实验过程，也会对代码做详细的介绍和注释。如有纰漏，还请见谅~*
@@ -468,21 +481,6 @@ def train_epoch(epoch):
 ### 相关项目
 - [llama2.c](https://github.com/karpathy/llama2.c) - 轻量级 LLaMA 实现
 - [minimind](https://github.com/jingyaogong/minimind) - 小型语言模型训练框架
-
----
-
-## 📖 目录索引
-
-- [🚀 项目概述](#-项目概述)
-- [✨ 这个仓库可以做什么？](#-这个仓库可以做什么)
-- [💻 在线体验](#-在线体验)
-- [🚀 快速开始](#-快速开始)
-- [🔧 技术实现详解](#-技术实现详解)
-  - [01 Tokenizer](#01-tokenizer)
-  - [02 Dataset](#02-dataset)
-  - [03 Model](#03-model)
-  - [04 Training](#04-training)
-- [📚 参考链接](#-参考链接)
 
 ---
 
