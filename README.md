@@ -181,7 +181,7 @@ def create_tokenizer_config(save_dir: str) -> None:
 
 然后就可以开始开心的训练了，详细的代码可以查看本仓库目录下的 [`train_tokenizer.py`](./train_tokenizer.py) 文件。
 
-## 02 Dataset
+### 02 Dataset
 
 ### Pretrain Dataset
 
@@ -310,7 +310,7 @@ class SFTDataset(Dataset):
 
 可以看到，其实 SFT Dataset 和 Pretrain Dataset 的 `X` 和 `Y` 是一样的，只是在 SFT Dataset 中我们需要生成一个 `loss_mask` 来标记哪些位置需要计算损失，哪些位置不需要计算损失。 图中 `Input ids` 中的蓝色小方格就是AI的回答，所以是需要模型学习的地方。所以在 `loss_mask` 中，蓝色小方格对应的位置是黄色，其他位置是灰色。在代码 `loss_mask` 中的 1 对应的位置计算损失，0 对应的位置不计算损失。
 
-## 03 Model
+### 03 Model
 
 首先是 [ModelConfig](k_model.py)，这个如果后续想要导出为 transformers 可以加载的模型，就需要定义一个 `ModelConfig` 类，且需要继承 `transformers.PretrainedConfig`。
 
@@ -348,7 +348,7 @@ class ModelConfig(PretrainedConfig):
 
 模型部分不会过多赘述，代码里面已经做了很详细的注释。这里只是简单的介绍一下模型的结构。想要详细了解模型的结构，可以查看本仓库目录下的 [`k_model.py`](k_model.py) 文件。
 
-## 04 Training
+### 04 Training
 
 终于到训练环节啦！
 
@@ -459,9 +459,33 @@ def train_epoch(epoch):
 > 注：此处参考 minimind 仓库的代码。
 
 
-## 参考链接
+## 📚 参考链接
 
-- [SkyWork 150B](https://huggingface.co/datasets/Skywork/SkyPile-150B)
-- [BelleGroup](https://huggingface.co/datasets/BelleGroup/train_3.5M_CN)
-- [llama2.c](https://github.com/karpathy/llama2.c)
-- [minimind](https://github.com/jingyaogong/minimind)
+### 数据集
+- [SkyWork 150B](https://huggingface.co/datasets/Skywork/SkyPile-150B) - 预训练数据集
+- [BelleGroup](https://huggingface.co/datasets/BelleGroup/train_3.5M_CN) - 中文指令数据集
+
+### 相关项目
+- [llama2.c](https://github.com/karpathy/llama2.c) - 轻量级 LLaMA 实现
+- [minimind](https://github.com/jingyaogong/minimind) - 小型语言模型训练框架
+
+---
+
+## 📖 目录索引
+
+- [🚀 项目概述](#-项目概述)
+- [✨ 这个仓库可以做什么？](#-这个仓库可以做什么)
+- [💻 在线体验](#-在线体验)
+- [🚀 快速开始](#-快速开始)
+- [🔧 技术实现详解](#-技术实现详解)
+  - [01 Tokenizer](#01-tokenizer)
+  - [02 Dataset](#02-dataset)
+  - [03 Model](#03-model)
+  - [04 Training](#04-training)
+- [📚 参考链接](#-参考链接)
+
+---
+
+*如果这个项目对你有帮助，请给个 ⭐️ 支持一下！*
+
+*有问题欢迎提 Issue 或 PR，让我们一起完善这个项目！*
